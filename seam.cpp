@@ -20,6 +20,19 @@ T my_min(const T &a, const T &b)
     return a < b ? a : b;
 }
 
+void transpose(Mat &img, bool cw)
+{
+    if (cw)
+    {
+        cv::transpose(img, img);
+        cv::flip(img, img, 1);
+    } else
+    {
+        cv::transpose(img, img);
+        cv::flip(img, img, 0);
+    }
+}
+
 void compute_energy(cv::Mat &img, cv::Mat &out)
 {
     cv::Mat dx, dy;
@@ -33,6 +46,7 @@ void compute_energy(cv::Mat &img, cv::Mat &out)
 
 void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam, int count)
 {
+    int base = seam.size();
     for (int n = 0; n < count; ++n)
     {
         int h = energy_mat.rows, w = energy_mat.cols;
@@ -73,7 +87,7 @@ void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam
                 min_index = j;
             }
         }
-        seam[n].push_back(min_index);
+        seam[base + n].push_back(min_index);
         energy_mat.at<double>(h - 1, min_index) = 1e20;
         for (int i = h - 2; i >= 0; --i)
         {
@@ -107,9 +121,9 @@ void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam
                 }
             }
             energy_mat.at<double>(i, min_index) = 1e20;
-            seam[n].push_back(min_index);
+            seam[base + n].push_back(min_index);
         }
-        std::reverse(std::begin(seam[n]), std::end(seam[n]));
+        std::reverse(std::begin(seam[base + n]), std::end(seam[base + n]));
         if (count > 1)
         {
             std::cout << n << "\n";
@@ -175,59 +189,50 @@ void add_seam_vertical(Mat &img, Mat &output, const std::vector<std::vector<int>
                 } else
                 {
                     if (j - count == img.cols)
-                        output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - count - 1);
+                        if (img.depth() == CV_64F)
+                        {
+                            output.at<double>(i, j) = img.at<double>(i, j - count - 1);
+                        } else
+                        {
+                            output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - count - 1);
+                        }
                     else
                     {
-                        Vec3b l = img.at<Vec3b>(i, j - 1 - count), r = img.at<Vec3b>(i, j - count);
-                        output.at<Vec3b>(i, j) = Vec3b((l[0] + r[0]) / 2, (l[1] + r[1]) / 2, (l[2] + r[2]) / 2);
+                        if (img.depth() == CV_64F)
+                        {
+                            output.at<double>(i, j) =
+                                    (img.at<double>(i, j - 1 - count) + img.at<double>(i, j - count)) / 2;
+                        } else
+                        {
+                            Vec3b l = img.at<Vec3b>(i, j - 1 - count), r = img.at<Vec3b>(i, j - count);
+                            output.at<Vec3b>(i, j) = Vec3b((l[0] + r[0]) / 2, (l[1] + r[1]) / 2, (l[2] + r[2]) / 2);
+
+                        }
                     }
                 }
-
                 count += 1;
             } else
             {
-                output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - count);
+                if (img.depth() == CV_64F)
+                {
+                    output.at<double>(i, j) = img.at<double>(i, j - count);
+                } else
+                {
+                    output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - count);
+                }
             }
         }
     }
 }
 
-void resize_img_vertical(Mat &img, double ratio, bool show_seam)
-{
 
-    int new_cols = int(img.cols * ratio);
+void shrink_img_vertical(Mat &img, int new_cols, Mat &mask_mat, std::vector<std::vector<int>> &seams)
+{
+    seams.clear();
+    int n = img.cols - new_cols;
     if (new_cols < img.cols)
     {
-        for (int i = 0; i < img.cols - new_cols; ++i)
-        {
-            Mat energy_mat;
-            compute_energy(img, energy_mat);
-            std::vector<std::vector<int>> seam;
-            find_vertical_seam(energy_mat, seam, 1);
-            Mat output(img.rows, img.cols - 1, CV_8UC3);
-            remove_seam_vertical(img, output, seam[0]);
-            img = output;
-            std::cout << i << "\n";
-        }
-    } else
-    {
-        Mat energy_mat;
-        compute_energy(img, energy_mat);
-        std::vector<std::vector<int>> seam;
-        find_vertical_seam(energy_mat, seam, new_cols - img.cols);
-        Mat output(img.rows, new_cols, CV_8UC3);
-        add_seam_vertical(img, output, seam, show_seam);
-        img = output;
-    }
-}
-
-void resize_img_vertical(Mat &img, double ratio, Mat &mask_mat, bool show_seam)
-{
-
-    int new_cols = int(img.cols * ratio);
-    if (new_cols < img.cols)
-    {
-        for (int i = 0; i < img.cols - new_cols; ++i)
+        for (int i = 0; i < n; ++i)
         {
             Mat energy_mat;
             compute_energy(img, energy_mat);
@@ -236,31 +241,110 @@ void resize_img_vertical(Mat &img, double ratio, Mat &mask_mat, bool show_seam)
                 for (int y = 0; y < energy_mat.cols; ++y)
                 {
                     double weight = mask_mat.at<double>(x, y);
-                    if (weight > 1.0)
-                    {
-                        int n = 0;
-                    }
                     energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) * weight;
                 }
             }
-            std::vector<std::vector<int>> seam;
-            find_vertical_seam(energy_mat, seam, 1);
+            find_vertical_seam(energy_mat, seams, 1);
             Mat output(img.rows, img.cols - 1, CV_8UC3), output_mask(img.rows, img.cols - 1, CV_64F);
-            remove_seam_vertical(img, output, seam[0]);
-            remove_seam_vertical(mask_mat, output_mask, seam[0]);
+            remove_seam_vertical(img, output, seams[i]);
+            remove_seam_vertical(mask_mat, output_mask, seams[i]);
             img = output;
             mask_mat = output_mask;
             std::cout << i << "\n";
         }
-    } else
+    }
+
+}
+
+void show_removed_seams(Mat &seam_img, std::vector<std::vector<int>> &seams)
+{
+    for (int i = seams.size() - 1; i >= 0; --i)
     {
-        Mat energy_mat;
-        compute_energy(img, energy_mat);
-        std::vector<std::vector<int>> seam;
-        find_vertical_seam(energy_mat, seam, new_cols - img.cols);
-        Mat output(img.rows, new_cols, CV_8UC3);
-        add_seam_vertical(img, output, seam, show_seam);
-        img = output;
+        Mat seam_output(seam_img.rows, seam_img.cols + 1, CV_8UC3);
+        std::vector<std::vector<int>> temp;
+        temp.emplace_back();
+        for (int j = 0; j < seams[i].size(); ++j)
+        {
+            temp[0].push_back(seams[i][j] - 1);
+        }
+        add_seam_vertical(seam_img, seam_output, temp, true);
+        seam_img = seam_output;
+        std::cout << i << "\n";
+    }
+}
+
+void shrink_img(Mat &img, Mat &seam_img, double v_ratio, double h_ratio, Mat &mask_mat)
+{
+    int new_cols = -int(img.cols * v_ratio) + img.cols, new_rows = -int(img.rows * h_ratio) + img.rows;
+    std::vector<std::vector<int>> v_seams, h_seams;
+    if (new_cols < img.cols)
+    {
+        shrink_img_vertical(img, new_cols, mask_mat, v_seams);
+    }
+    if (new_rows < img.rows)
+    {
+        transpose(img, true);
+        transpose(mask_mat, true);
+        shrink_img_vertical(img, new_rows, mask_mat, h_seams);
+        transpose(img, false);
+        transpose(mask_mat, false);
+    }
+    img.copyTo(seam_img);
+    if (h_seams.size() > 0)
+    {
+        transpose(seam_img, true);
+        show_removed_seams(seam_img, h_seams);
+        transpose(seam_img, false);
+
+    }
+    if (v_seams.size() > 0)
+    {
+        show_removed_seams(seam_img, v_seams);
+    }
+}
+
+void expand_img_vertical(Mat &img, Mat &seam_img, int new_cols, Mat &mask_mat)
+{
+    Mat energy_mat;
+    compute_energy(img, energy_mat);
+    for (int x = 0; x < energy_mat.rows; x++)
+    {
+        for (int y = 0; y < energy_mat.cols; ++y)
+        {
+            double weight = mask_mat.at<double>(x, y);
+            energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) * weight;
+        }
+    }
+    std::vector<std::vector<int>> seam;
+    find_vertical_seam(energy_mat, seam, new_cols - img.cols);
+    Mat output(img.rows, new_cols, CV_8UC3);
+    Mat seam_img_output(img.rows, new_cols, CV_8UC3);
+    Mat mask_output(img.rows, new_cols, CV_64F);
+    add_seam_vertical(img, output, seam, false);
+    add_seam_vertical(mask_mat, mask_output, seam, false);
+    add_seam_vertical(seam_img, seam_img_output, seam, true);
+    img = output;
+    seam_img = seam_img_output;
+    mask_mat = mask_output;
+}
+
+void expand_img(Mat &img, Mat &seam_img, double v_ratio, double h_ratio, Mat &mask_mat)
+{
+    int new_cols = int(img.cols * v_ratio) + img.cols, new_rows = int(img.rows * h_ratio) + img.rows;
+    img.copyTo(seam_img);
+    if (new_cols > img.cols)
+    {
+        expand_img_vertical(img, seam_img, new_cols, mask_mat);
+    }
+    if (new_rows > img.rows)
+    {
+        transpose(img, true);
+        transpose(mask_mat, true);
+        transpose(seam_img, true);
+        expand_img_vertical(img, seam_img, new_rows, mask_mat);
+        transpose(img, false);
+        transpose(mask_mat, false);
+        transpose(seam_img, false);
     }
 }
 

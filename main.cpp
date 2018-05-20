@@ -7,37 +7,20 @@ using namespace cv;
 
 int main()
 {
-    cv::Mat img = cv::imread("/Users/Duzx/Downloads/6.jpg");
-    /*cv::Mat mask_img = cv::imread("/Users/Duzx/Downloads/content_mask.jpg");
-    cv::Mat mask(mask_img.rows, mask_img.cols, CV_64F);
+    cv::Mat img = cv::imread("/Users/Duzx/Downloads/face.jpg"), seam_img;
+    cv::Mat mask(img.rows, img.cols, CV_64F, 1.0);
+    cv::Mat mask_img = cv::imread("/Users/Duzx/Downloads/content_mask.jpg");
     for (int i = 0; i < mask_img.rows; ++i)
     {
         for (int j = 0; j < mask_img.cols; ++j)
         {
-            if (mask_img.at<Vec3b>(i, j)[0] <= 10 and mask_img.at<Vec3b>(i, j)[1] <= 10 and mask_img.at<Vec3b>(i, j)[2] >= 240)
+            if (mask_img.at<Vec3b>(i, j)[0] == 0 and mask_img.at<Vec3b>(i, j)[1] == 0 and mask_img.at<Vec3b>(i, j)[2] == 255)
                 mask.at<double>(i, j) = 1e20;
-            else
-                mask.at<double>(i, j) = 1.0;
         }
-    }*/
-    resize_img_vertical(img, 0.8, true);
-    if (true)
-    {
-        // 进行90度旋转
-        cv::transpose(img, img);
-        cv::flip(img, img, 1);
-        //cv::transpose(mask, mask);
-        //cv::flip(mask, mask, 1);
-        // 再次resize
-        resize_img_vertical(img, 0.8, true);
-        // 转回来
-        cv::transpose(img, img);
-        cv::flip(img, img, 0);
-        //cv::transpose(mask, mask);
-        //cv::flip(mask, mask, 0);
     }
-
-    cv::imwrite("6.jpg", img);
+    shrink_img(img, seam_img, 0.2, 0.2, mask);
+    cv::imwrite("face_cut.jpg", img);
+    cv::imwrite("face_seam_cut.jpg", seam_img);
     cv::imshow("[img]", img);
     cv::waitKey(0);
     return 0;

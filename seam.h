@@ -2,6 +2,7 @@
 #define SEAM_RESIZE_SEAM_H
 
 #include <opencv2/core.hpp>
-void resize_img_vertical(cv::Mat &img, double ratio, bool show_seam=false);
-void resize_img_vertical(cv::Mat &img, double ratio, cv::Mat &mask_mat, bool show_seam=false);
+
+void expand_img(cv::Mat &img, cv::Mat &seam_img, double v_ratio, double h_ratio, cv::Mat &mask_mat);
+void shrink_img(cv::Mat &img, cv::Mat &seam_img, double v_ratio, double h_ratio, cv::Mat &mask_mat);
 #endif //SEAM_RESIZE_SEAM_H
