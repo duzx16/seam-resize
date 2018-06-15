@@ -150,7 +150,7 @@ void remove_seam_vertical(Mat &img, Mat &output, const std::vector<int> &seam)
             {
                 if (img.depth() == CV_64F)
                 {
-                    output.at<double>(i, j) = img.at<double>(i, j);
+                    output.at<double>(i, j) = img.at<double>(i, j + 1);
                 } else
                 {
                     output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j + 1);
@@ -241,7 +241,11 @@ void shrink_img_vertical(Mat &img, int new_cols, Mat &mask_mat, std::vector<std:
                 for (int y = 0; y < energy_mat.cols; ++y)
                 {
                     double weight = mask_mat.at<double>(x, y);
-                    energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) * weight;
+                    if (weight > 1e10)
+                    {
+                        int a = 0;
+                    }
+                    energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) + weight;
                 }
             }
             find_vertical_seam(energy_mat, seams, 1);
@@ -312,7 +316,7 @@ void expand_img_vertical(Mat &img, Mat &seam_img, int new_cols, Mat &mask_mat)
         for (int y = 0; y < energy_mat.cols; ++y)
         {
             double weight = mask_mat.at<double>(x, y);
-            energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) * weight;
+            energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) + weight;
         }
     }
     std::vector<std::vector<int>> seam;
