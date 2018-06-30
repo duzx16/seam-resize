@@ -33,15 +33,43 @@ void transpose(Mat &img, bool cw)
     }
 }
 
+
+cv::Mat &roberts(cv::Mat &srcImage, cv::Mat &outImage)
+{
+    outImage = cv::Mat(srcImage.rows, srcImage.cols, CV_64F, 0.0);
+    int nRows = srcImage.rows, nCols = srcImage.cols;
+    for (int i = 0; i < nRows; i++)
+    {
+        for (int j = 0; j < nCols; j++)
+        {
+            for (int m = -1; m <= 1; m += 2)
+                for (int n = -1; n <= 1; n += 2)
+                {
+                    if (i + m >= 0 and i + m < nRows and j + n >= 0 and j + n < nCols)
+                        outImage.at<double>(i, j) += (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j)) * (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j));
+                }
+
+            outImage.at<double>(i, j) = sqrt(outImage.at<double>(i, j));
+        }
+    }
+    return outImage;
+}
+
+
 void compute_energy(cv::Mat &img, cv::Mat &out)
 {
-    cv::Mat dx, dy;
     Mat gray;
     cvtColor(img, gray, CV_BGR2GRAY);
+    // Sobel
+    cv::Mat dx, dy;
     cv::Sobel(gray, dx, CV_64F, 1, 0);
     cv::Sobel(gray, dy, CV_64F, 0, 1);
-    //cv::Laplacian(gray, out, CV_64F);
     cv::magnitude(dx, dy, out);
+    // Laplacian
+    //cv::Laplacian(gray, out, CV_64F);
+    // Roberts
+    //roberts(gray, out);
+
 }
 
 void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam, int count)

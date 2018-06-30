@@ -7,7 +7,7 @@ using namespace cv;
 
 int main()
 {
-    cv::Mat img = cv::imread("/Users/Duzx/Downloads/input.jpg"), seam_img;
+    cv::Mat img = cv::imread("/Users/Duzx/Downloads/input.png"), seam_img;
     cv::Mat mask(img.rows, img.cols, CV_64F, 0.0);
     cv::Mat mask_img = cv::imread("/Users/Duzx/Downloads/mask.jpg");
     for (int i = 0; i < mask_img.rows; ++i)
@@ -23,7 +23,7 @@ int main()
         }
     }
     shrink_img(img, seam_img, 0.2, 0.2, mask);
-    cv::imwrite("ouput.jpg", img);
+    cv::imwrite("output.jpg", img);
     cv::imwrite("seam.jpg", seam_img);
     cv::imshow("[img]", img);
     cv::waitKey(0);
