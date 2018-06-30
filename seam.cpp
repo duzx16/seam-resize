@@ -8,6 +8,8 @@
 
 using namespace cv;
 
+#define USE_SOBEL
+
 template<typename T>
 T my_min(const T &a, const T &b, const T &c)
 {
@@ -46,7 +48,8 @@ cv::Mat &roberts(cv::Mat &srcImage, cv::Mat &outImage)
                 for (int n = -1; n <= 1; n += 2)
                 {
                     if (i + m >= 0 and i + m < nRows and j + n >= 0 and j + n < nCols)
-                        outImage.at<double>(i, j) += (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j)) * (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j));
+                        outImage.at<double>(i, j) += (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j)) *
+                                                     (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j));
                 }
 
             outImage.at<double>(i, j) = sqrt(outImage.at<double>(i, j));
@@ -61,14 +64,20 @@ void compute_energy(cv::Mat &img, cv::Mat &out)
     Mat gray;
     cvtColor(img, gray, CV_BGR2GRAY);
     // Sobel
+#ifdef USE_LAPLACIAN
+    // Laplacian
+    cv::Laplacian(gray, out, CV_64F);
+#else
+#ifdef USE_ROBERTS
+    // Roberts
+    roberts(gray, out);
+#else
     cv::Mat dx, dy;
     cv::Sobel(gray, dx, CV_64F, 1, 0);
     cv::Sobel(gray, dy, CV_64F, 0, 1);
     cv::magnitude(dx, dy, out);
-    // Laplacian
-    //cv::Laplacian(gray, out, CV_64F);
-    // Roberts
-    //roberts(gray, out);
+#endif
+#endif
 
 }
 
