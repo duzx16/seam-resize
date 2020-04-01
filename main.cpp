@@ -1,15 +1,15 @@
-#include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include "seam.h"
 
 using namespace cv;
 
-int main()
+int main(int argc, char* argv[])
 {
-    cv::Mat img = cv::imread("/Users/Duzx/Downloads/input.png"), seam_img;
+    assert(argc == 3);
+    cv::Mat img = cv::imread(argv[1]), seam_img;
     cv::Mat mask(img.rows, img.cols, CV_64F, 0.0);
-    cv::Mat mask_img = cv::imread("/Users/Duzx/Downloads/mask.jpg");
+    cv::Mat mask_img = cv::imread(argv[2]);
     for (int i = 0; i < mask_img.rows; ++i)
     {
         for (int j = 0; j < mask_img.cols; ++j)
@@ -22,7 +22,7 @@ int main()
                 mask.at<double>(i, j) = 1e50;
         }
     }
-    shrink_img(img, seam_img, 0.2, 0.2, mask);
+    shrink_img(img, seam_img, 0.3, 0.0, mask);
     cv::imwrite("output.jpg", img);
     cv::imwrite("seam.jpg", seam_img);
     cv::imshow("[img]", img);

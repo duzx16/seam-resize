@@ -99,17 +99,13 @@ void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam
                 cost_mat.at<double>(i, j) = energy_mat.at<double>(i, j);
                 if (j == 0)
                 {
-                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),
-                                                        cost_mat.at<double>(i - 1, j + 1));
+                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),cost_mat.at<double>(i - 1, j + 1));
                 } else if (j == w - 1)
                 {
-                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),
-                                                        cost_mat.at<double>(i - 1, j - 1));
+                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),cost_mat.at<double>(i - 1, j - 1));
                 } else
                 {
-                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j - 1),
-                                                        cost_mat.at<double>(i - 1, j),
-                                                        cost_mat.at<double>(i - 1, j + 1));
+                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j - 1),cost_mat.at<double>(i - 1, j),cost_mat.at<double>(i - 1, j + 1));
                 }
             }
         }
@@ -278,10 +274,6 @@ void shrink_img_vertical(Mat &img, int new_cols, Mat &mask_mat, std::vector<std:
                 for (int y = 0; y < energy_mat.cols; ++y)
                 {
                     double weight = mask_mat.at<double>(x, y);
-                    if (weight > 1e10)
-                    {
-                        int a = 0;
-                    }
                     energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) + weight;
                 }
             }
