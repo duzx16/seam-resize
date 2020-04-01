@@ -11,42 +11,33 @@ using namespace cv;
 #define USE_SOBEL
 
 template<typename T>
-T my_min(const T &a, const T &b, const T &c)
-{
+T my_min(const T &a, const T &b, const T &c) {
     return a < b ? (a < c ? a : c) : (b < c ? b : c);
 }
 
 template<typename T>
-T my_min(const T &a, const T &b)
-{
+T my_min(const T &a, const T &b) {
     return a < b ? a : b;
 }
 
-void transpose(Mat &img, bool cw)
-{
-    if (cw)
-    {
+void transpose(Mat &img, bool cw) {
+    if (cw) {
         cv::transpose(img, img);
         cv::flip(img, img, 1);
-    } else
-    {
+    } else {
         cv::transpose(img, img);
         cv::flip(img, img, 0);
     }
 }
 
 
-cv::Mat &roberts(cv::Mat &srcImage, cv::Mat &outImage)
-{
+cv::Mat &roberts(cv::Mat &srcImage, cv::Mat &outImage) {
     outImage = cv::Mat(srcImage.rows, srcImage.cols, CV_64F, 0.0);
     int nRows = srcImage.rows, nCols = srcImage.cols;
-    for (int i = 0; i < nRows; i++)
-    {
-        for (int j = 0; j < nCols; j++)
-        {
+    for (int i = 0; i < nRows; i++) {
+        for (int j = 0; j < nCols; j++) {
             for (int m = -1; m <= 1; m += 2)
-                for (int n = -1; n <= 1; n += 2)
-                {
+                for (int n = -1; n <= 1; n += 2) {
                     if (i + m >= 0 and i + m < nRows and j + n >= 0 and j + n < nCols)
                         outImage.at<double>(i, j) += (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j)) *
                                                      (srcImage.at<uchar>(i + m, j + n) - srcImage.at<uchar>(i, j));
@@ -59,8 +50,7 @@ cv::Mat &roberts(cv::Mat &srcImage, cv::Mat &outImage)
 }
 
 
-void compute_energy(cv::Mat &img, cv::Mat &out)
-{
+void compute_energy(cv::Mat &img, cv::Mat &out) {
     Mat gray;
     cvtColor(img, gray, CV_BGR2GRAY);
     // Sobel
@@ -81,74 +71,58 @@ void compute_energy(cv::Mat &img, cv::Mat &out)
 
 }
 
-void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam, int count)
-{
+void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam, int count) {
     int base = seam.size();
-    for (int n = 0; n < count; ++n)
-    {
+    for (int n = 0; n < count; ++n) {
         int h = energy_mat.rows, w = energy_mat.cols;
         cv::Mat cost_mat(h, w, CV_64F, 0.0);
-        for (int j = 0; j < w; ++j)
-        {
+        for (int j = 0; j < w; ++j) {
             cost_mat.at<double>(0, j) = energy_mat.at<double>(0, j);
         }
-        for (int i = 1; i < h; ++i)
-        {
-            for (int j = 0; j < w; ++j)
-            {
+        for (int i = 1; i < h; ++i) {
+            for (int j = 0; j < w; ++j) {
                 cost_mat.at<double>(i, j) = energy_mat.at<double>(i, j);
-                if (j == 0)
-                {
-                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),cost_mat.at<double>(i - 1, j + 1));
-                } else if (j == w - 1)
-                {
-                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),cost_mat.at<double>(i - 1, j - 1));
-                } else
-                {
-                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j - 1),cost_mat.at<double>(i - 1, j),cost_mat.at<double>(i - 1, j + 1));
+                if (j == 0) {
+                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),
+                                                        cost_mat.at<double>(i - 1, j + 1));
+                } else if (j == w - 1) {
+                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j),
+                                                        cost_mat.at<double>(i - 1, j - 1));
+                } else {
+                    cost_mat.at<double>(i, j) += my_min(cost_mat.at<double>(i - 1, j - 1),
+                                                        cost_mat.at<double>(i - 1, j),
+                                                        cost_mat.at<double>(i - 1, j + 1));
                 }
             }
         }
         seam.emplace_back();
         double min_value = 1e200;
         int min_index = 0;
-        for (int j = 0; j < w; ++j)
-        {
-            if (cost_mat.at<double>(h - 1, j) < min_value)
-            {
+        for (int j = 0; j < w; ++j) {
+            if (cost_mat.at<double>(h - 1, j) < min_value) {
                 min_value = cost_mat.at<double>(h - 1, j);
                 min_index = j;
             }
         }
         seam[base + n].push_back(min_index);
         energy_mat.at<double>(h - 1, min_index) = 1e20;
-        for (int i = h - 2; i >= 0; --i)
-        {
-            if (min_index == 0)
-            {
-                if (cost_mat.at<double>(i, min_index + 1) < cost_mat.at<double>(i, min_index))
-                {
+        for (int i = h - 2; i >= 0; --i) {
+            if (min_index == 0) {
+                if (cost_mat.at<double>(i, min_index + 1) < cost_mat.at<double>(i, min_index)) {
                     min_index = min_index + 1;
                 }
-            } else if (min_index == w - 1)
-            {
-                if (cost_mat.at<double>(i, min_index - 1) < cost_mat.at<double>(i, min_index))
-                {
+            } else if (min_index == w - 1) {
+                if (cost_mat.at<double>(i, min_index - 1) < cost_mat.at<double>(i, min_index)) {
                     min_index = min_index - 1;
                 }
 
-            } else
-            {
-                if (cost_mat.at<double>(i, min_index - 1) < cost_mat.at<double>(i, min_index + 1))
-                {
-                    if (cost_mat.at<double>(i, min_index - 1) < cost_mat.at<double>(i, min_index))
-                    {
+            } else {
+                if (cost_mat.at<double>(i, min_index - 1) < cost_mat.at<double>(i, min_index + 1)) {
+                    if (cost_mat.at<double>(i, min_index - 1) < cost_mat.at<double>(i, min_index)) {
                         min_index = min_index - 1;
                     }
-                } else
-                {
-                    if (cost_mat.at<double>(i, min_index + 1) < cost_mat.at<double>(i, min_index))
-                    {
+                } else {
+                    if (cost_mat.at<double>(i, min_index + 1) < cost_mat.at<double>(i, min_index)) {
                         min_index = min_index + 1;
                     }
                 }
@@ -157,35 +131,25 @@ void find_vertical_seam(cv::Mat &energy_mat, std::vector<std::vector<int>> &seam
             seam[base + n].push_back(min_index);
         }
         std::reverse(std::begin(seam[base + n]), std::end(seam[base + n]));
-        if (count > 1)
-        {
+        if (count > 1) {
             std::cout << n << "\n";
         }
     }
 }
 
-void remove_seam_vertical(Mat &img, Mat &output, const std::vector<int> &seam)
-{
-    for (int i = 0; i < img.rows; ++i)
-    {
-        for (int j = 0; j < img.cols - 1; ++j)
-        {
-            if (j < seam[i])
-            {
-                if (img.depth() == CV_64F)
-                {
+void remove_seam_vertical(Mat &img, Mat &output, const std::vector<int> &seam) {
+    for (int i = 0; i < img.rows; ++i) {
+        for (int j = 0; j < img.cols - 1; ++j) {
+            if (j < seam[i]) {
+                if (img.depth() == CV_64F) {
                     output.at<double>(i, j) = img.at<double>(i, j);
-                } else
-                {
+                } else {
                     output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j);
                 }
-            } else
-            {
-                if (img.depth() == CV_64F)
-                {
+            } else {
+                if (img.depth() == CV_64F) {
                     output.at<double>(i, j) = img.at<double>(i, j + 1);
-                } else
-                {
+                } else {
                     output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j + 1);
                 }
             }
@@ -193,50 +157,36 @@ void remove_seam_vertical(Mat &img, Mat &output, const std::vector<int> &seam)
     }
 }
 
-void add_seam_vertical(Mat &img, Mat &output, const std::vector<std::vector<int>> &seam, bool show_seam)
-{
+void add_seam_vertical(Mat &img, Mat &output, const std::vector<std::vector<int>> &seam, bool show_seam) {
     std::vector<std::vector<int>> new_seam;
-    for (int i = 0; i < seam[0].size(); ++i)
-    {
+    for (int i = 0; i < seam[0].size(); ++i) {
         new_seam.emplace_back();
-        for (int j = 0; j < seam.size(); ++j)
-        {
+        for (int j = 0; j < seam.size(); ++j) {
             new_seam[i].push_back(seam[j][i]);
         }
         new_seam[i].push_back(100000);
     }
-    for (auto &it:new_seam)
-    {
+    for (auto &it:new_seam) {
         std::sort(it.begin(), it.end());
     }
-    for (int i = 0; i < img.rows; ++i)
-    {
+    for (int i = 0; i < img.rows; ++i) {
         int count = 0;
-        for (int j = 0; j < img.cols + seam.size(); ++j)
-        {
-            if (j - count == new_seam[i][count] + 1)
-            {
-                if (show_seam)
-                {
+        for (int j = 0; j < img.cols + seam.size(); ++j) {
+            if (j - count == new_seam[i][count] + 1) {
+                if (show_seam) {
                     output.at<Vec3b>(i, j) = Vec3b(0, 0, 255);
-                } else
-                {
+                } else {
                     if (j - count == img.cols)
-                        if (img.depth() == CV_64F)
-                        {
+                        if (img.depth() == CV_64F) {
                             output.at<double>(i, j) = img.at<double>(i, j - count - 1);
-                        } else
-                        {
+                        } else {
                             output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - count - 1);
                         }
-                    else
-                    {
-                        if (img.depth() == CV_64F)
-                        {
+                    else {
+                        if (img.depth() == CV_64F) {
                             output.at<double>(i, j) =
                                     (img.at<double>(i, j - 1 - count) + img.at<double>(i, j - count)) / 2;
-                        } else
-                        {
+                        } else {
                             Vec3b l = img.at<Vec3b>(i, j - 1 - count), r = img.at<Vec3b>(i, j - count);
                             output.at<Vec3b>(i, j) = Vec3b((l[0] + r[0]) / 2, (l[1] + r[1]) / 2, (l[2] + r[2]) / 2);
 
@@ -244,13 +194,10 @@ void add_seam_vertical(Mat &img, Mat &output, const std::vector<std::vector<int>
                     }
                 }
                 count += 1;
-            } else
-            {
-                if (img.depth() == CV_64F)
-                {
+            } else {
+                if (img.depth() == CV_64F) {
                     output.at<double>(i, j) = img.at<double>(i, j - count);
-                } else
-                {
+                } else {
                     output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - count);
                 }
             }
@@ -259,20 +206,15 @@ void add_seam_vertical(Mat &img, Mat &output, const std::vector<std::vector<int>
 }
 
 
-void shrink_img_vertical(Mat &img, int new_cols, Mat &mask_mat, std::vector<std::vector<int>> &seams)
-{
+void shrink_img_vertical(Mat &img, int new_cols, Mat &mask_mat, std::vector<std::vector<int>> &seams) {
     seams.clear();
     int n = img.cols - new_cols;
-    if (new_cols < img.cols)
-    {
-        for (int i = 0; i < n; ++i)
-        {
+    if (new_cols < img.cols) {
+        for (int i = 0; i < n; ++i) {
             Mat energy_mat;
             compute_energy(img, energy_mat);
-            for (int x = 0; x < energy_mat.rows; x++)
-            {
-                for (int y = 0; y < energy_mat.cols; ++y)
-                {
+            for (int x = 0; x < energy_mat.rows; x++) {
+                for (int y = 0; y < energy_mat.cols; ++y) {
                     double weight = mask_mat.at<double>(x, y);
                     energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) + weight;
                 }
@@ -289,15 +231,12 @@ void shrink_img_vertical(Mat &img, int new_cols, Mat &mask_mat, std::vector<std:
 
 }
 
-void show_removed_seams(Mat &seam_img, std::vector<std::vector<int>> &seams)
-{
-    for (int i = seams.size() - 1; i >= 0; --i)
-    {
+void show_removed_seams(Mat &seam_img, std::vector<std::vector<int>> &seams) {
+    for (int i = seams.size() - 1; i >= 0; --i) {
         Mat seam_output(seam_img.rows, seam_img.cols + 1, CV_8UC3);
         std::vector<std::vector<int>> temp;
         temp.emplace_back();
-        for (int j = 0; j < seams[i].size(); ++j)
-        {
+        for (int j = 0; j < seams[i].size(); ++j) {
             temp[0].push_back(seams[i][j] - 1);
         }
         add_seam_vertical(seam_img, seam_output, temp, true);
@@ -306,16 +245,13 @@ void show_removed_seams(Mat &seam_img, std::vector<std::vector<int>> &seams)
     }
 }
 
-void shrink_img(Mat &img, Mat &seam_img, double v_ratio, double h_ratio, Mat &mask_mat)
-{
+void shrink_img(Mat &img, Mat &seam_img, double v_ratio, double h_ratio, Mat &mask_mat) {
     int new_cols = -int(img.cols * v_ratio) + img.cols, new_rows = -int(img.rows * h_ratio) + img.rows;
     std::vector<std::vector<int>> v_seams, h_seams;
-    if (new_cols < img.cols)
-    {
+    if (new_cols < img.cols) {
         shrink_img_vertical(img, new_cols, mask_mat, v_seams);
     }
-    if (new_rows < img.rows)
-    {
+    if (new_rows < img.rows) {
         transpose(img, true);
         transpose(mask_mat, true);
         shrink_img_vertical(img, new_rows, mask_mat, h_seams);
@@ -323,27 +259,22 @@ void shrink_img(Mat &img, Mat &seam_img, double v_ratio, double h_ratio, Mat &ma
         transpose(mask_mat, false);
     }
     img.copyTo(seam_img);
-    if (h_seams.size() > 0)
-    {
+    if (h_seams.size() > 0) {
         transpose(seam_img, true);
         show_removed_seams(seam_img, h_seams);
         transpose(seam_img, false);
 
     }
-    if (v_seams.size() > 0)
-    {
+    if (v_seams.size() > 0) {
         show_removed_seams(seam_img, v_seams);
     }
 }
 
-void expand_img_vertical(Mat &img, Mat &seam_img, int new_cols, Mat &mask_mat)
-{
+void expand_img_vertical(Mat &img, Mat &seam_img, int new_cols, Mat &mask_mat) {
     Mat energy_mat;
     compute_energy(img, energy_mat);
-    for (int x = 0; x < energy_mat.rows; x++)
-    {
-        for (int y = 0; y < energy_mat.cols; ++y)
-        {
+    for (int x = 0; x < energy_mat.rows; x++) {
+        for (int y = 0; y < energy_mat.cols; ++y) {
             double weight = mask_mat.at<double>(x, y);
             energy_mat.at<double>(x, y) = energy_mat.at<double>(x, y) + weight;
         }
@@ -361,16 +292,13 @@ void expand_img_vertical(Mat &img, Mat &seam_img, int new_cols, Mat &mask_mat)
     mask_mat = mask_output;
 }
 
-void expand_img(Mat &img, Mat &seam_img, double v_ratio, double h_ratio, Mat &mask_mat)
-{
+void expand_img(Mat &img, Mat &seam_img, double v_ratio, double h_ratio, Mat &mask_mat) {
     int new_cols = int(img.cols * v_ratio) + img.cols, new_rows = int(img.rows * h_ratio) + img.rows;
     img.copyTo(seam_img);
-    if (new_cols > img.cols)
-    {
+    if (new_cols > img.cols) {
         expand_img_vertical(img, seam_img, new_cols, mask_mat);
     }
-    if (new_rows > img.rows)
-    {
+    if (new_rows > img.rows) {
         transpose(img, true);
         transpose(mask_mat, true);
         transpose(seam_img, true);
